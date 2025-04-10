@@ -1,13 +1,45 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { FaArrowLeft, FaArrowRight, FaRocket } from "react-icons/fa";
 
+// Reference spaceship image from public folder
+const spaceshipImage = "./spaceship.png";
+const enemyImage = "./enenmy.png";
+
 const SpaceInvaders = () => {
-  const [spaceshipX, setSpaceshipX] = useState(window.innerWidth / 2 - 25);
+  const [spaceshipX, setSpaceshipX] = useState(window.innerWidth / 2 - 64); // Adjusted for 128px width
   const [enemies, setEnemies] = useState([]);
   const [bullets, setBullets] = useState([]);
   const [score, setScore] = useState(0);
   const [gameOver, setGameOver] = useState(false);
   const [startGame, setStartGame] = useState(false);
+
+
+  // Ref for smooth movement
+  const animationFrameRef = useRef();
+
+  // Smooth movement logic
+  const moveSmoothly = (newX) => {
+    if (!gameOver) {
+      cancelAnimationFrame(animationFrameRef.current);
+      const start = spaceshipX;
+      const target = Math.max(0, Math.min(newX, window.innerWidth - 128)); // 128px width
+      const duration = 200; // Duration in milliseconds
+      const startTime = performance.now();
+
+      const animate = (currentTime) => {
+        const elapsed = currentTime - startTime;
+        const progress = Math.min(elapsed / duration, 1);
+        const ease = progress < 0.5 ? 2 * progress * progress : -1 + (4 - 2 * progress) * progress; // Ease-in-out
+        setSpaceshipX(start + (target - start) * ease);
+
+        if (progress < 1) {
+          animationFrameRef.current = requestAnimationFrame(animate);
+        }
+      };
+
+      animationFrameRef.current = requestAnimationFrame(animate);
+    }
+  };
 
   useEffect(() => {
     if (startGame) {
@@ -18,7 +50,7 @@ const SpaceInvaders = () => {
             { x: Math.random() * (window.innerWidth - 50), y: 0 },
           ]);
         }
-      }, 2000);
+      }, 1500);
 
       return () => clearInterval(interval);
     }
@@ -83,30 +115,30 @@ const SpaceInvaders = () => {
     }
   }, [enemies, startGame]);
 
+  // Updated movement functions with smooth animation
   const moveLeft = () => {
-    if (!gameOver) {
-      setSpaceshipX((prev) => Math.max(prev - 30, 0));
-    }
+    moveSmoothly(spaceshipX - 30);
   };
 
   const moveRight = () => {
-    if (!gameOver) {
-      setSpaceshipX((prev) => Math.min(prev + 30, window.innerWidth - 50));
-    }
+    moveSmoothly(spaceshipX + 30);
   };
 
   const shootBullet = () => {
     if (!gameOver) {
+      // Calculate bullet start position from the center of the spaceship
+      const bulletX = spaceshipX + 64; // 64 is half of 128px width (center of spaceship)
       setBullets((prev) => [
         ...prev,
-        { x: spaceshipX + 20, y: window.innerHeight - 110 },
+        { x: bulletX, y: window.innerHeight - 110 },
       ]);
     }
   };
 
   const restartGame = () => {
+    cancelAnimationFrame(animationFrameRef.current); // Clean up animation
     setGameOver(false);
-    setSpaceshipX(window.innerWidth / 2 - 25);
+    setSpaceshipX(window.innerWidth / 2 - 64); // Reset to center
     setEnemies([]);
     setBullets([]);
     setScore(0);
@@ -122,16 +154,31 @@ const SpaceInvaders = () => {
       {!startGame && !gameOver && (
         <div className="absolute inset-0 flex flex-col items-center justify-center bg-black bg-opacity-80">
           <h1 className="text-white text-4xl font-bold mb-6">Space Invaders</h1>
-          <p className="text-xl mb-5">Instructions:</p>
-          <ul className="text-lg mb-5">
-            <li>1. Use the <FaArrowLeft /> and <FaArrowRight /> buttons to move your spaceship left and right.</li>
-            <li>2. Press the <FaRocket /> button to shoot bullets at the enemies.</li>
-            <li>3. Your goal is to shoot as many enemies as possible before they reach the bottom of the screen.</li>
-            <li>4. The game ends if an enemy reaches the bottom.</li>
-          </ul>
+          <p className="text-xl mb-5 text-gray-300">Instructions:</p>
+          <div className="bg-gray-800 p-6 rounded-lg shadow-lg max-w-md w-full">
+  <ol className="list-decimal list-inside space-y-3 text-gray-200">
+    <li className="flex items-center">
+      <span className="text-yellow-400 mr-2">1.</span>
+      Use the <FaArrowLeft className="inline-block mx-1 text-yellow-400" /> and <FaArrowRight className="inline-block mx-1 text-yellow-400" /> keys to move your spaceship.
+    </li>
+    <li className="flex items-center">
+      <span className="text-yellow-400 mr-2">2.</span>
+      Press the <FaRocket className="inline-block mx-1 text-yellow-400" /> key to shoot.
+    </li>
+    <li className="flex items-center">
+      <span className="text-yellow-400 mr-2">3.</span>
+      Try to destroy the enemies before they reach the bottom.
+    </li>
+    <li className="flex items-center">
+      <span className="text-yellow-400 mr-2">4.</span>
+      The game ends if any enemy gets to the bottom.
+    </li>
+  </ol>
+</div>
+
           <button
             onClick={startGameHandler}
-            className="bg-yellow-400 text-black px-6 py-3 rounded-md text-lg font-bold hover:bg-yellow-500"
+            className="mt-6 bg-yellow-400 text-black px-6 py-3 rounded-md text-lg font-bold hover:bg-yellow-500 transition duration-300"
           >
             Start Game
           </button>
@@ -144,7 +191,7 @@ const SpaceInvaders = () => {
           <div className="text-white text-lg mb-4">Final Score: {score}</div>
           <button
             onClick={restartGame}
-            className="bg-yellow-400 text-black px-6 py-3 rounded-md text-lg font-semibold hover:bg-yellow-500"
+            className="bg-yellow-400 text-black px-6 py-3 rounded-md text-lg font-semibold hover:bg-yellow-500 transition duration-300"
           >
             Restart
           </button>
@@ -157,43 +204,47 @@ const SpaceInvaders = () => {
             Score: {score}
           </div>
           {enemies.map((enemy, index) => (
-            <div
+            <img
               key={index}
-              className="absolute bg-red-500 w-12 h-12 rounded-lg"
+              src={enemyImage}
+              alt="Enemy"
+              className="absolute w-20 h-20"
               style={{ top: enemy.y, left: enemy.x }}
-            ></div>
+            />
           ))}
           {bullets.map((bullet, index) => (
             <div
               key={index}
-              className="absolute bg-yellow-400 w-4 h-4 rounded-full"
+              className="absolute bg-red-500 w-4 h-4 rounded-full"
               style={{ top: bullet.y, left: bullet.x }}
-            ></div>
+            />
           ))}
-          <div
-            className="absolute mb-14 bg-blue-500 w-12 h-12 rounded-lg"
+          <img
+            src={spaceshipImage}
+            alt="Spaceship"
+            className="absolute w-32 h-32 mb-14"
             style={{ left: spaceshipX, bottom: "100px" }}
-          ></div>
-          <div className="absolute mb-14 bottom-5 w-full flex justify-around">
-            <button
-              onClick={moveLeft}
-              className="text-white bg-gray-800 p-3 rounded-full hover:bg-gray-700"
-            >
-              <FaArrowLeft size={24} />
-            </button>
-            <button
-              onClick={shootBullet}
-              className="text-white bg-gray-800 p-3 rounded-full hover:bg-gray-700"
-            >
-              <FaRocket size={40} color={"yellow"} />
-            </button>
-            <button
-              onClick={moveRight}
-              className="text-white bg-gray-800 p-3 rounded-full hover:bg-gray-700"
-            >
-              <FaArrowRight size={24} />
-            </button>
-          </div>
+          />
+         <div className="absolute mb-14 bottom-5 w-full flex justify-around">
+  <button
+    onClick={moveLeft}
+    className="text-white bg-gradient-to-r from-gray-700 to-gray-900 p-4 rounded-lg shadow-md hover:from-gray-600 hover:to-gray-800 transition-all duration-300 transform hover:-translate-y-1 focus:outline-none focus:ring-2 focus:ring-gray-500 focus:ring-opacity-50"
+  >
+    <FaArrowLeft size={24} />
+  </button>
+  <button
+    onClick={shootBullet}
+    className="text-white bg-gradient-to-r from-gray-700 to-gray-900 p-4 rounded-lg shadow-md hover:from-gray-600 hover:to-gray-800 transition-all duration-300 transform hover:-translate-y-1 focus:outline-none focus:ring-2 focus:ring-gray-500 focus:ring-opacity-50"
+  >
+    <FaRocket size={40} color={"yellow"} />
+  </button>
+  <button
+    onClick={moveRight}
+    className="text-white bg-gradient-to-r from-gray-700 to-gray-900 p-4 rounded-lg shadow-md hover:from-gray-600 hover:to-gray-800 transition-all duration-300 transform hover:-translate-y-1 focus:outline-none focus:ring-2 focus:ring-gray-500 focus:ring-opacity-50"
+  >
+    <FaArrowRight size={24} />
+  </button>
+</div>
         </>
       )}
     </div>
